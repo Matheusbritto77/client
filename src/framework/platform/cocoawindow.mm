@@ -222,7 +222,7 @@ void CocoaWindow::internalCreateWindow()
                                              backing:NSBackingStoreBuffered
                                                defer:NO];
 
-    [m_window setTitle:@"OTClient"];
+    [m_window setTitle:@"astarOT Client"];
     [m_window center];
     [m_window setMinSize:NSMakeSize(m_minimumSize.width(), m_minimumSize.height())];
 

@@ -77,8 +77,8 @@ protected:
     void registerLuaFunctions();
 
     std::string m_charset{ "cp1252" };
-    std::string m_organizationName{ "otbr" };
-    std::string m_appName{ "OTClient - Redemption" };
+    std::string m_organizationName{ "astarOT" };
+    std::string m_appName{ "astarOT Client" };
     std::string m_appCompactName{ "otclient" };
     std::string m_startupOptions;
 

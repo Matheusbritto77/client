@@ -11,6 +11,7 @@ Services = {
     status = WEB_BASE_URL .. "/api/v1/login",
     websites = WEB_BASE_URL,
     createAccount = WEB_BASE_URL .. "/api/v1/create_account",
+    createAccountPage = WEB_BASE_URL .. "/createaccount",
     getCoinsUrl = WEB_BASE_URL,
     clientAssets = {
         enabled = true,
@@ -69,7 +70,7 @@ if ENABLE_SERVERS then
         [SERVER_IP] = {
             port = 7171,
             protocol = DEFAULT_CLIENT_VERSION,
-            httpLogin = false,
+            httpLogin = true,
             useAuthenticator = false
         }
     }

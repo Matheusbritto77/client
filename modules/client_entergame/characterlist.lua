@@ -390,6 +390,10 @@ local function tryLogin(charInfo, tries)
 
     CharacterList.hide()
 
+    g_logger.info(string.format('[LoginTrace] CharacterList.tryLogin tries=%d character=%s world=%s host=%s port=%s clientVersion=%s',
+        tries, tostring(charInfo.characterName), tostring(charInfo.worldName),
+        tostring(charInfo.worldHost), tostring(charInfo.worldPort), tostring(g_game.getClientVersion())))
+
     g_game.loginWorld(G.account, G.password, charInfo.worldName, charInfo.worldHost, charInfo.worldPort,
                       charInfo.characterName, G.authenticatorToken, G.sessionKey)
 
@@ -485,6 +489,7 @@ local function onLoginWait(message, time)
 end
 
 function onGameLoginError(message)
+    g_logger.info(string.format('[LoginTrace] CharacterList.onGameLoginError message=%s', tostring(message)))
     CharacterList.destroyLoadBox()
     errorBox = displayErrorBox(tr('Login Error'), message)
     errorBox.onOk = function()
@@ -499,6 +504,7 @@ function onGameSessionEnd(reason)
 end
 
 function onGameConnectionError(message, code)
+    g_logger.info(string.format('[LoginTrace] CharacterList.onGameConnectionError code=%s message=%s', tostring(code), tostring(message)))
     CharacterList.destroyLoadBox()
     local text = translateNetworkError(code, g_game.getProtocolGame() and g_game.getProtocolGame():isConnecting(),
                                        message)

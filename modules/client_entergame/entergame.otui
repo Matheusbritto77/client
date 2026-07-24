@@ -229,11 +229,14 @@ EnterGameWindow
     margin-top: -17
     size: 109 20
     @onClick: |
-      self:disable()
-      createWidgetAccount()
+      if Services and Services.createAccountPage then
+        g_platform.openUrl(Services.createAccountPage)
+      elseif Services and Services.websites then
+        g_platform.openUrl(Services.websites)
+      end
 
     @onSetup: | 
-      if Services and Servers_init and table.size(Servers_init) == 1 and Services.createAccount then
+      if Services and Servers_init and table.size(Servers_init) == 1 and (Services.createAccountPage or Services.websites) then
         self:setVisible(true)
       else
         self:setVisible(false)

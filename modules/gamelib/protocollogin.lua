@@ -15,11 +15,26 @@ LoginServerExtendedCharacterList = 101
 LoginServerRetry = 10
 LoginServerErrorNew = 11
 
+local function redactLoginValue(value)
+    value = tostring(value or '')
+    if value == '' then
+        return '<empty>'
+    end
+    if #value <= 6 then
+        return string.rep('*', #value)
+    end
+    return value:sub(1, 3) .. '...' .. value:sub(-2)
+end
+
 function ProtocolLogin:login(host, port, accountName, accountPassword, authenticatorToken, stayLogged)
     if string.len(host) == 0 or port == nil or port == 0 then
         signalcall(self.onLoginError, self, tr('You must enter a valid server address and port.'))
         return
     end
+
+    g_logger.info(string.format('[LoginTrace] ProtocolLogin:login host=%s port=%s account=%s passwordLen=%d token=%s stayLogged=%s',
+        tostring(host), tostring(port), redactLoginValue(accountName), #tostring(accountPassword or ''),
+        tostring(authenticatorToken and #authenticatorToken > 0), tostring(stayLogged)))
 
     self.accountName = accountName
     self.accountPassword = accountPassword
@@ -31,10 +46,14 @@ function ProtocolLogin:login(host, port, accountName, accountPassword, authentic
 end
 
 function ProtocolLogin:cancelLogin()
+    g_logger.info('[LoginTrace] ProtocolLogin:cancelLogin')
     self:disconnect()
 end
 
 function ProtocolLogin:sendLoginPacket()
+    g_logger.info(string.format('[LoginTrace] ProtocolLogin:sendLoginPacket clientVersion=%s protocolVersion=%s os=%s account=%s',
+        tostring(g_game.getClientVersion()), tostring(g_game.getProtocolVersion()), tostring(g_game.getOs()),
+        redactLoginValue(self.accountName)))
     local msg = OutputMessage.create()
     msg:addU8(ClientOpcodes.ClientEnterAccount)
     msg:addU16(g_game.getOs())
@@ -144,18 +163,24 @@ function ProtocolLogin:sendLoginPacket()
         end, 1000)
     end
 
+    g_logger.debug(string.format('[LoginTrace] ProtocolLogin:sendLoginPacket bytes=%d encrypted=%s authenticator=%s',
+        msg:getMessageSize(), tostring(g_game.getFeature(GameLoginPacketEncryption)),
+        tostring(g_game.getFeature(GameAuthenticator))))
     self:recv()
 end
 
 function ProtocolLogin:onConnect()
+    g_logger.info('[LoginTrace] ProtocolLogin:onConnect')
     self.gotConnection = true
     self:connectCallback()
     self.connectCallback = nil
 end
 
 function ProtocolLogin:onRecv(msg)
+    g_logger.info('[LoginTrace] ProtocolLogin:onRecv')
     while not msg:eof() do
         local opcode = msg:getU8()
+        g_logger.debug(string.format('[LoginTrace] ProtocolLogin:onRecv opcode=%d', opcode))
         if opcode == LoginServerErrorNew then
             self:parseError(msg)
         elseif opcode == LoginServerError then
@@ -187,16 +212,19 @@ end
 
 function ProtocolLogin:parseError(msg)
     local errorMessage = msg:getString()
+    g_logger.info(string.format('[LoginTrace] ProtocolLogin:parseError message=%s', tostring(errorMessage)))
     signalcall(self.onLoginError, self, errorMessage)
 end
 
 function ProtocolLogin:parseMotd(msg)
     local motd = msg:getString()
+    g_logger.info(string.format('[LoginTrace] ProtocolLogin:parseMotd bytes=%d', #tostring(motd or '')))
     signalcall(self.onMotd, self, motd)
 end
 
 function ProtocolLogin:parseSessionKey(msg)
     local sessionKey = msg:getString()
+    g_logger.info(string.format('[LoginTrace] ProtocolLogin:parseSessionKey bytes=%d', #tostring(sessionKey or '')))
     signalcall(self.onSessionKey, self, sessionKey)
 end
 
@@ -207,6 +235,7 @@ function ProtocolLogin:parseCharacterList(msg)
         local worlds = {}
 
         local worldsCount = msg:getU8()
+        g_logger.info(string.format('[LoginTrace] ProtocolLogin:parseCharacterList worlds=%d', worldsCount))
         for i = 1, worldsCount do
             local world = {}
             local worldId = msg:getU8()
@@ -218,6 +247,7 @@ function ProtocolLogin:parseCharacterList(msg)
         end
 
         local charactersCount = msg:getU8()
+        g_logger.info(string.format('[LoginTrace] ProtocolLogin:parseCharacterList characters=%d', charactersCount))
         for i = 1, charactersCount do
             local character = {}
             local worldId = msg:getU8()
@@ -265,6 +295,7 @@ function ProtocolLogin:parseCharacterList(msg)
 end
 
 function ProtocolLogin:parseExtendedCharacterList(msg)
+    g_logger.info('[LoginTrace] ProtocolLogin:parseExtendedCharacterList')
     local characters = msg:getTable()
     local account = msg:getTable()
     local otui = msg:getString()
@@ -272,10 +303,12 @@ function ProtocolLogin:parseExtendedCharacterList(msg)
 end
 
 function ProtocolLogin:parseOpcode(opcode, msg)
+    g_logger.info(string.format('[LoginTrace] ProtocolLogin:parseOpcode opcode=%d', opcode))
     signalcall(self.onOpcode, self, opcode, msg)
 end
 
 function ProtocolLogin:onError(msg, code)
+    g_logger.info(string.format('[LoginTrace] ProtocolLogin:onError code=%s message=%s', tostring(code), tostring(msg)))
     local text = translateNetworkError(code, self:isConnecting(), msg)
     signalcall(self.onLoginError, self, text)
 end

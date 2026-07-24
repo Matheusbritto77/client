@@ -22,8 +22,20 @@ local hasAttemptedAuthenticator = false
 local lockedWorldHost = "209.126.81.68"
 local lockedWorldPort = 7172
 
+local function redactLoginValue(value)
+    value = tostring(value or '')
+    if value == '' then
+        return '<empty>'
+    end
+    if #value <= 6 then
+        return string.rep('*', #value)
+    end
+    return value:sub(1, 3) .. '...' .. value:sub(-2)
+end
+
 -- private functions
 local function onError(protocol, message, errorCode)
+    g_logger.info(string.format('[LoginTrace] EnterGame.onError code=%s message=%s', tostring(errorCode), tostring(message)))
     if loadBox then
         loadBox:destroy()
         loadBox = nil
@@ -59,16 +71,20 @@ local function onError(protocol, message, errorCode)
 end
 
 local function onMotd(protocol, motd)
+    g_logger.info(string.format('[LoginTrace] EnterGame.onMotd bytes=%d', #tostring(motd or '')))
     G.motdNumber = tonumber(motd:sub(0, motd:find('\n')))
     G.motdMessage = motd:sub(motd:find('\n') + 1, #motd)
 end
 
 local function onSessionKey(protocol, sessionKey)
+    g_logger.info(string.format('[LoginTrace] EnterGame.onSessionKey bytes=%d', #tostring(sessionKey or '')))
     G.sessionKey = sessionKey
 end
 
 local function onCharacterList(protocol, characters, account, otui)
     local httpLogin = enterGame:getChildById('httpLoginBox'):isChecked()
+    g_logger.info(string.format('[LoginTrace] EnterGame.onCharacterList httpLogin=%s characters=%d premDays=%s',
+        tostring(httpLogin), #characters, tostring(account and account.premDays or 'nil')))
 
     -- Try add server to the server list
     ServerList.add(G.host, G.port, g_game.getClientVersion(), httpLogin)
@@ -639,6 +655,8 @@ function EnterGame.onClientVersionChange(comboBox, text, data)
 end
 
 function EnterGame.tryHttpLogin(clientVersion, httpLogin)
+    g_logger.info(string.format('[LoginTrace] EnterGame.tryHttpLogin host=%s port=%s clientVersion=%s httpLogin=%s account=%s',
+        tostring(G.host), tostring(G.port), tostring(clientVersion), tostring(httpLogin), redactLoginValue(G.account)))
     g_game.setClientVersion(clientVersion)
     g_game.setProtocolVersion(g_game.getClientProtocolVersion(clientVersion))
     g_game.chooseRsa(G.host)
@@ -665,9 +683,14 @@ function EnterGame.tryHttpLogin(clientVersion, httpLogin)
         end
     })
 
+    local loginUrl = httpLogin and Services and Services.status or nil
     local host, path = G.host, "/"
-    if G.host:find("https?://") then
-        local url = G.host:gsub("https?://", "")
+    local port = G.port
+    local usePlainHttp = httpLogin == true
+
+    if loginUrl and (loginUrl:find("^http://") or loginUrl:find("^https://")) then
+        usePlainHttp = loginUrl:find("^http://") ~= nil
+        local url = loginUrl:gsub("^https://", ""):gsub("^http://", "")
         host, path = url:match("([^/]+)(/.*)")
         if not host then
             host = url
@@ -678,15 +701,32 @@ function EnterGame.tryHttpLogin(clientVersion, httpLogin)
         local hostPort = host:match(":(%d+)$")
         if hostPort then
             host = host:gsub(":%d+$", "")
-            G.port = tonumber(hostPort)
+            port = tonumber(hostPort)
+        else
+            port = usePlainHttp and 80 or 443
+        end
+    elseif G.host:find("^http://") or G.host:find("^https://") then
+        usePlainHttp = G.host:find("^http://") ~= nil
+        local url = G.host:gsub("^https://", ""):gsub("^http://", "")
+        host, path = url:match("([^/]+)(/.*)")
+        if not host then
+            host = url
+            path = "/"
+        elseif not path or path == "" then
+            path = "/"
+        end
+        local hostPort = host:match(":(%d+)$")
+        if hostPort then
+            host = host:gsub(":%d+$", "")
+            port = tonumber(hostPort)
         end
     end
 
-    if not G.port then
-        if G.host:find("https") then
-            G.port = 443
+    if not port then
+        if usePlainHttp then
+            port = 80
         else
-            G.port = 80
+            port = 443
         end
     end
 
@@ -694,7 +734,9 @@ function EnterGame.tryHttpLogin(clientVersion, httpLogin)
     G.requestId = math.random(1)
 
     local http = LoginHttp.create()
-    http:httpLogin(host, path, G.port, G.account, G.password, G.requestId, httpLogin, G.authenticatorToken)
+    g_logger.info(string.format('[LoginTrace] EnterGame.tryHttpLogin endpoint=%s:%s%s plainHttp=%s',
+        tostring(host), tostring(port), tostring(path), tostring(usePlainHttp)))
+    http:httpLogin(host, path, port, G.account, G.password, G.requestId, usePlainHttp, G.authenticatorToken)
 end
 
 function printTable(t)
@@ -713,6 +755,7 @@ function EnterGame.loginSuccess(requestId, jsonSession, jsonWorlds, jsonCharacte
     if G.requestId ~= requestId then
         return
     end
+    g_logger.info(string.format('[LoginTrace] EnterGame.loginSuccess requestId=%s', tostring(requestId)))
 
     -- Update the existing loadBox message or create new one if it doesn't exist
     if loadBox then
@@ -789,6 +832,8 @@ function EnterGame.loginFailed(requestId, msg, result)
     if G.requestId ~= requestId then
         return
     end
+    g_logger.info(string.format('[LoginTrace] EnterGame.loginFailed requestId=%s result=%s message=%s',
+        tostring(requestId), tostring(result), tostring(msg)))
     onError(nil, msg, result)
 end
 
@@ -801,6 +846,10 @@ function EnterGame.doLogin()
     local clientVersion = tonumber(clientBox:getText())
     G.clientVersion = clientVersion
     local httpLogin = enterGame:getChildById('httpLoginBox'):isChecked()
+    g_logger.info(string.format(
+        '[LoginTrace] EnterGame.doLogin host=%s port=%s clientVersion=%s httpLogin=%s account=%s passwordLen=%d stayLogged=%s',
+        tostring(G.host), tostring(G.port), tostring(clientVersion), tostring(httpLogin),
+        redactLoginValue(G.account), #tostring(G.password or ''), tostring(G.stayLogged)))
 
     if g_game.isOnline() then
         local errorBox = displayErrorBox(tr('Login Error'), tr('Cannot login while already in game.'))
@@ -833,7 +882,7 @@ function EnterGame.doLogin()
 
     EnterGame.hide()
 
-    if clientVersion >= 1281 and G.port ~= 7171 then
+    if clientVersion >= 1281 and (httpLogin or G.port ~= 7171) then
         EnterGame.tryHttpLogin(clientVersion, httpLogin)
     else
         protocolLogin = ProtocolLogin.create()
