@@ -27,7 +27,8 @@ local currentIndex = 1
 GameStore = {}
 -- == Enums ==--
 GameStore.website = {
-    WEBSITE_GETCOINS = "https://github.com/mehah/otclient",
+    WEBSITE_GETCOINS = Services and (Services.getCoinsUrl or Services.websites) or "https://github.com/mehah/otclient",
+    IMAGES_URL = Services and Services.websites and (Services.websites .. "/images/store") or nil
     --IMAGES_URL =  "http://localhost/images/store/" --./game_store --https://docs.opentibiabr.com/opentibiabr/downloads/website-applications/applications#store-for-client-13-1
 }
 
@@ -117,17 +118,144 @@ local function getPageLabelHistory()
     return tonumber(currentPage), tonumber(pageCount)
 end
 
+local CATEGORY_ICON_SPRITE = "/game_shop/images/categories"
+local CATEGORY_ICON_CLIPS = {
+    Category_PremiumTime = "0 0 13 13",
+    Category_Consumables = "13 0 13 13",
+    Category_Blessings = "26 0 13 13",
+    Category_Casks = "39 0 13 13",
+    Category_ExerciseWeapons = "52 0 13 13",
+    Category_Kegs = "65 0 13 13",
+    Category_Potions = "78 0 13 13",
+    Category_Runes = "91 0 13 13",
+    Category_Cosmetics = "104 0 13 13",
+    Category_Mounts = "117 0 13 13",
+    Category_Outfits = "130 0 13 13",
+    Category_Houses = "143 0 13 13",
+    Category_HouseTools = "156 0 13 13",
+    Category_HouseDecorations = "169 0 13 13",
+    Category_HouseFurniture = "182 0 13 13",
+    Category_Beds = "195 0 13 13",
+    Category_HouseUpgrades = "208 0 13 13",
+    Category_HouseTools_NPCApprenticeships = "221 0 13 13",
+    Category_HouseTools_NPCDresses = "234 0 13 13",
+    Category_Boosts = "247 0 13 13",
+    Category_Extras = "260 0 13 13",
+    Category_ExtraServices = "273 0 13 13",
+    Category_UsefulThings = "286 0 13 13",
+    Category_Tournament = "299 0 13 13",
+    Category_Tickets = "312 0 13 13",
+    Category_ExclusiveOffers = "312 0 13 13",
+}
+
+local LOCAL_STORE_IMAGE_ALIASES = {
+    ["64/Premium_Time_30.png"] = "/game_shop/images/30_days.png",
+    ["64/Premium_Time_90.png"] = "/game_shop/images/90_days.png",
+    ["64/Premium_Time_180.png"] = "/game_shop/images/180_days.png",
+    ["64/Premium_Time_360.png"] = "/game_shop/images/360_days.png",
+    ["64/All_PvE_Blessings.png"] = "/game_shop/images/All_regular_Blessings.png",
+    ["64/All_Regular_Blessings.png"] = "/game_shop/images/All_regular_Blessings.png",
+    ["64/Spark_of_the_Phoenix.png"] = "/game_shop/images/The_Spark_of_the_Phoenix.png",
+    ["64/Fire_of_the_Suns.png"] = "/game_shop/images/The_Fire_of_the_Suns.png",
+    ["64/Spiritual_Shielding.png"] = "/game_shop/images/The_Spiritual_Shielding.png",
+    ["64/Embrace_of_Tibia.png"] = "/game_shop/images/The_Embrace_of_Tibia.png",
+    ["64/Wisdom_of_Solitude.png"] = "/game_shop/images/The_Wisdom_of_Solitude.png",
+    ["64/Twist_of_Fate.png"] = "/game_shop/images/Twist_of_Fate.png",
+    ["64/Heart_of_the_Mountain.png"] = "/game_shop/images/Heart_of_the_Mountain.png",
+    ["64/Blood_of_the_Mountain.png"] = "/game_shop/images/Blood_of_the_Mountain.png",
+    ["64/Name_Change.png"] = "/game_shop/images/Name_Change.png",
+    ["64/Sex_Change.png"] = "/game_shop/images/Sex_Change.png",
+    ["64/Temple_Teleport.png"] = "/game_shop/images/Temple_Teleport.png",
+    ["64/XP_Boost.png"] = "/game_shop/images/XP_Boost.png",
+}
+
+local function normalizeStoreImagePath(url)
+    return tostring(url or ""):gsub("^/+", "")
+end
+
+local function getLocalStoreImage(url)
+    local normalized = normalizeStoreImagePath(url)
+    if normalized == "" then
+        return nil
+    end
+
+    if normalized:match("^home/") then
+        return { source = "/images/background", fixedRatio = false }
+    end
+
+    local categoryIconName = normalized:match("^13/(.+)%.png$")
+    if categoryIconName then
+        return {
+            source = CATEGORY_ICON_SPRITE,
+            clip = CATEGORY_ICON_CLIPS[categoryIconName] or "0 0 13 13",
+            fixedRatio = false
+        }
+    end
+
+    local alias = LOCAL_STORE_IMAGE_ALIASES[normalized]
+    if alias and g_resources.fileExists(alias) then
+        return { source = alias }
+    end
+
+    local storePath = "/game_store/images/" .. normalized
+    if g_resources.fileExists(storePath) then
+        return { source = storePath }
+    end
+
+    local shopPath = "/game_shop/images/" .. normalized:gsub("^64/", "")
+    if g_resources.fileExists(shopPath) then
+        return { source = shopPath }
+    end
+
+    return nil
+end
+
+local function getFallbackStoreImage(url)
+    local normalized = normalizeStoreImagePath(url)
+    if normalized:match("^home/") then
+        return { source = "/game_store/images/dragon", fixedRatio = false }
+    end
+    return { source = "/game_store/images/dynamic-image-error", fixedRatio = false }
+end
+
+local function setStoreImage(widget, image, isIcon)
+    if image.clip then
+        widget:setImageSource(image.source)
+        widget:setImageClip(image.clip)
+    elseif isIcon then
+        widget:setIcon(image.source)
+    else
+        widget:setImageSource(image.source)
+    end
+
+    if image.fixedRatio ~= nil and not isIcon then
+        widget:setImageFixedRatio(image.fixedRatio)
+    end
+end
+
+local function buildRemoteStoreImageUrl(url)
+    if tostring(url or ""):match("^https?://") then
+        return url
+    end
+    if not GameStore.website.IMAGES_URL or GameStore.website.IMAGES_URL == "" then
+        return nil
+    end
+    return GameStore.website.IMAGES_URL:gsub("/+$", "") .. "/" .. normalizeStoreImagePath(url)
+end
+
 local function setImagenHttp(widget, url, isIcon)
-    if GameStore.website.IMAGES_URL then
-        HTTP.downloadImage(GameStore.website.IMAGES_URL .. url, function(path, err)
+    local localImage = getLocalStoreImage(url)
+    if localImage then
+        setStoreImage(widget, localImage, isIcon)
+        return
+    end
+
+    local remoteUrl = buildRemoteStoreImageUrl(url)
+    if remoteUrl then
+        HTTP.downloadImage(remoteUrl, function(path, err)
             if err then
-                g_logger.warning("HTTP error: " .. err .. " - " .. GameStore.website.IMAGES_URL .. url)
-                if isIcon then
-                    widget:setIcon("/game_store/images/dynamic-image-error")
-                else
-                    widget:setImageSource("/game_store/images/dynamic-image-error")
-                    widget:setImageFixedRatio(false)
-                end
+                g_logger.warning("HTTP error: " .. err .. " - " .. remoteUrl)
+                setStoreImage(widget, getFallbackStoreImage(url), isIcon)
                 return
             end
             if isIcon then
@@ -137,13 +265,7 @@ local function setImagenHttp(widget, url, isIcon)
             end
         end)
     else
-        if not g_resources.fileExists("/game_store/images/" .. url) then
-            widget:setImageSource("/game_store/images/dynamic-image-error")
-            widget:setImageFixedRatio(false)
-        else
-            widget:setImageSource("/game_store/images/" .. url)
-        end
-
+        setStoreImage(widget, getFallbackStoreImage(url), isIcon)
     end
 end
 
@@ -535,7 +657,7 @@ end
 -- =============================================*/
 
 function onStoreInit(url, coinsPacketSize)
-    if not GameStore.website.IMAGES_URL then
+    if url and url ~= "" and not GameStore.website.IMAGES_URL then
         GameStore.website.IMAGES_URL = url
     end
 end
