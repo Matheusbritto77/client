@@ -328,6 +328,7 @@ bool ResourceManager::discoverWorkDir(const std::string& existentFile)
     std::string possiblePaths[] = { g_platform.getCurrentDir(),
                                     g_resources.getBaseDir(),
                                     g_resources.getBaseDir() + "/game_data/",
+                                    g_resources.getBaseDir() + "../Resources/game_data/",
                                     g_resources.getBaseDir() + "../",
                                     g_resources.getBaseDir() + "../share/" + g_app.getCompactName() + "/",
                                     };
