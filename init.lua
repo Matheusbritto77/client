@@ -1,13 +1,16 @@
 -- this is the first file executed when the application starts
 -- we have to load the first modules form here
 
+local SERVER_IP = "209.126.81.68"
+local WEB_BASE_URL = "http://209.126.81.68:8080"
+
 -- updater
 Services = {
-    --updater = "http://localhost/api/updater.php", --./updater
-    --status = "http://localhost/login.php", --./client_entergame | ./client_topmenu
-    --websites = "http://localhost/?subtopic=accountmanagement", --./client_entergame "Forgot password and/or email"
-    --createAccount = "http://localhost/clientcreateaccount.php", --./client_entergame -- createAccount.lua
-    --getCoinsUrl = "http://localhost/?subtopic=shop&step=terms", --./game_market
+    updater = "",
+    status = WEB_BASE_URL .. "/tools/api/status.php",
+    websites = WEB_BASE_URL,
+    createAccount = WEB_BASE_URL .. "/api/v1/create_account",
+    getCoinsUrl = WEB_BASE_URL,
     clientAssets = {
         enabled = true,
         repository = "dudantas/tibia-client",
@@ -62,44 +65,18 @@ if ENABLE_SERVERS then
     -- @table Servers_init
     --
     Servers_init = {
-
-        -- Local login server
-        ---
-        -- Configuration for local login server.
-        -- @class table
-        -- @name local_login
-        -- @field port Port used for HTTP connection
-        -- @field protocol Protocol identifier used by the application
-        -- @field httpLogin Enables HTTP-based login on the server
-        -- @field useAuthenticator Enables additional authentication layer
-        --
-        ["http://127.0.0.1/login.php"] = {
-            port = 80,
-            protocol = 1511,
-            httpLogin = true,
-            useAuthenticator = false
-        },
-
-        -- External server
-        ---
-        -- Configuration for external server ip.net.
-        -- @class table
-        -- @name ip_net
-        -- @field port TCP port used for connection
-        -- @field protocol Protocol identifier used by the server
-        -- @field httpLogin Indicates if the server allows HTTP login
-        --
-        ["ip.net"] = {
+        [SERVER_IP] = {
             port = 7171,
-            protocol = 860,
-            httpLogin = false
+            protocol = 1513,
+            httpLogin = false,
+            useAuthenticator = false
         }
     }
 end
 
-g_app.setName("OTClient - Redemption");
+g_app.setName("astarOT Client");
 g_app.setCompactName("otclient");
-g_app.setOrganizationName("otcr");
+g_app.setOrganizationName("astarOT");
 
 g_app.hasUpdater = function()
     return (Services.updater and Services.updater ~= "" and g_modules.getModule("updater"))

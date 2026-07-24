@@ -1,154 +1,133 @@
 <?php
-$playersOnline = 0;
-$data = json_decode(file_get_contents("php://input"));
 
-//if(!$data) {
-// 
-//}
+declare(strict_types=1);
 
-$requestType = $data->type;
+const AAC_BASE_URL = 'http://209.126.81.68:8080';
+const AAC_LOGIN_URL = AAC_BASE_URL . '/api/v1/login';
 
-// TOP MENU function EnterGame.postCacheInfo()
+function postJson(string $url, array $payload): ?array
+{
+    $body = json_encode($payload);
+    if ($body === false) {
+        return null;
+    }
+
+    $response = false;
+    if (function_exists('curl_init')) {
+        $ch = curl_init($url);
+        curl_setopt_array($ch, [
+            CURLOPT_POST => true,
+            CURLOPT_POSTFIELDS => $body,
+            CURLOPT_RETURNTRANSFER => true,
+            CURLOPT_CONNECTTIMEOUT => 5,
+            CURLOPT_TIMEOUT => 10,
+            CURLOPT_HTTPHEADER => [
+                'Content-Type: application/json',
+                'Accept: application/json',
+            ],
+        ]);
+        $response = curl_exec($ch);
+        curl_close($ch);
+    } else {
+        $context = stream_context_create([
+            'http' => [
+                'method' => 'POST',
+                'header' => "Content-Type: application/json\r\nAccept: application/json\r\n",
+                'content' => $body,
+                'timeout' => 10,
+            ],
+        ]);
+        $response = file_get_contents($url, false, $context);
+    }
+
+    if ($response === false || $response === '' || $response === null) {
+        return null;
+    }
+
+    $decoded = json_decode($response, true);
+    return is_array($decoded) ? $decoded : null;
+}
+
+function brandedStatusResponse(array $cacheInfo, array $boostedData): array
+{
+    return [
+        'playersonline' => (string) ($cacheInfo['playersonline'] ?? 0),
+        'discord_online' => (int) ($cacheInfo['discord_online'] ?? 0),
+        'discord_link' => AAC_BASE_URL,
+        'youtube_link' => AAC_BASE_URL,
+        'gamingyoutubestreams' => (string) ($cacheInfo['gamingyoutubestreams'] ?? 0),
+        'gamingyoutubeviewer' => (string) ($cacheInfo['gamingyoutubeviewer'] ?? 0),
+        'test' => 'cacheinfo',
+        'boostedcreature' => $boostedData,
+    ];
+}
+
+$rawInput = file_get_contents('php://input');
+$data = json_decode($rawInput ?: '[]');
+$requestType = is_object($data) && isset($data->type) ? (string) $data->type : '';
 
 if ($requestType === 'cacheinfo') {
-    if (function_exists('curl_init')) {
-        try {
-            $ch = curl_init();
-            curl_setopt($ch, CURLOPT_URL, "https://otarchive.com/server/62cde2f41770eac22ec6ad19");
-            curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-            curl_setopt($ch, CURLOPT_SSL_VERIFYPEER, false);
-            curl_setopt($ch, CURLOPT_ENCODING, "");
+    $cacheInfo = postJson(AAC_LOGIN_URL, ['type' => 'cacheinfo']) ?? [];
+    $boostedData = postJson(AAC_LOGIN_URL, ['type' => 'boostedcreature']) ?? [];
 
-            $site = curl_exec($ch);
-            curl_close($ch);
-
-            preg_match('/Informed Players (\d+) \(\d+\)/', $site, $matches);
-
-            $doc = new DOMDocument();
-            @$doc->loadHTML($site);
-
-            $xpath = new DOMXPath($doc);
-
-
-            $thElement = $xpath->query('//th[contains(text(), "Informed Players")]')->item(0);
-            if ($thElement) {
-
-                $tdElement = $thElement->nextSibling;
-                if ($tdElement && $tdElement->nodeName === 'td') {
-                    $playersOnlineText = $tdElement->nodeValue;
-
-                    if (preg_match('/(\d+)/', $playersOnlineText, $matches)) {
-                        $playersOnline = $matches[1];
-                    }
-                }
-            }
-            $playersOnline = $matches[1];
-        } catch (Exception $e) {
-        }
-    } else {
-
-        $site = file_get_contents("https://otarchive.com/server/62cde2f41770eac22ec6ad19");
-
-        preg_match('/Informed Players (\d+) \(\d+\)/', $site, $matches);
-
-        $doc = new DOMDocument();
-        @$doc->loadHTML($site);
-
-        $xpath = new DOMXPath($doc);
-
-        $thElement = $xpath->query('//th[contains(text(), "Informed Players")]')->item(0);
-        if ($thElement) {
-           
-            $tdElement = $thElement->nextSibling;
-            if ($tdElement && $tdElement->nodeName === 'td') {
-                $playersOnlineText = $tdElement->nodeValue;
-
-                if (preg_match('/(\d+)/', $playersOnlineText, $matches)) {
-                    $playersOnline = $matches[1];
-                }
-            }
-        }
-        $playersOnline = $matches[1];
-    }
-
-
-    $online_discord = 0;
-    try {
-        $online_discord = json_decode(file_get_contents("https://discordapp.com/api/guilds/628769144925585428/widget.json"))->presence_count;
-    } catch (Exception $e) {
-    }
-
-    $response = array(
-        "playersonline" => "$playersOnline",
-        "discord_online" => $online_discord,
-        "discord_link" => "https://discord.gg/tUjTBZzMCy",
-        "youtube_link" => "https://www.youtube.com/watch?v=6_2zizoJKxQ",
-        "gamingyoutubestreams" => "0",
-        "gamingyoutubeviewer" => "0",
-        "test" => $requestType,
-    );
-    echo json_encode($response);
-
-    // TOP MENU function EnterGame.postEventScheduler()
-
-} elseif ($requestType === 'eventschedule') {
-    // TEST
-    $eventSchedulerCalendar = array(
-        array(
-            "startdate" => strtotime("2024-03-20"),
-            "enddate" => strtotime("2024-03-25"),
-            "colorlight" => "#FF0000",
-            "colordark" => "#800000",
-            "description" => "Descripcion del evento 1",
-            "displaypriority" => 1,
-            "isseasonal" => true,
-            "name" => "Evento 1",
-            "specialevent" => true
-        ),
-        array(
-            "startdate" => strtotime("2024-04-01"),
-            "enddate" => strtotime("2024-04-05"),
-            "colorlight" => "#00FF00",
-            "colordark" => "#008000",
-            "description" => "Descripcion del evento 2",
-            "displaypriority" => 2,
-            "isseasonal" => false,
-            "name" => "Evento 2",
-            "specialevent" => false
-        )
-    );
-
-    $response = array(
-        "lastupdatetimestamp" => time(),
-        "eventlist" => $eventSchedulerCalendar,
-    );
-    echo json_encode($response);
+    echo json_encode(brandedStatusResponse($cacheInfo, $boostedData));
+    exit;
 }
 
-//EnterGame.postShowOff()
-elseif ($requestType === 'showoff') {
+if ($requestType === 'eventschedule') {
+    $response = postJson(AAC_LOGIN_URL, ['type' => 'eventschedule']);
+    if ($response === null) {
+        $response = [
+            'lastupdatetimestamp' => time(),
+            'eventlist' => [],
+        ];
+    }
 
-    $response = array(
-        "image" => "https://raw.githubusercontent.com/mehah/otclient/main/data/images/clienticon.png",
-        "title" => "OTClient - Redemption",
-        "description" => "Otclient is an alternative Tibia client for usage with otserv. It aims to be complete and flexible, for that it uses LUA scripting for all game interface functionality and configurations files with a syntax similar to CSS for the client interface design."
-    );
     echo json_encode($response);
-
-    //  EnterGame.postShowCreatureBoost()
-} elseif ($requestType === 'boostedcreature') {
-
-
-    $response = array(
-        "creature" => array(
-            "type" => 222
-        ),
-        "boss" => array(
-            "type" => 232
-        )
-    );
-    echo json_encode($response);
-} else {
-    http_response_code(504);
+    exit;
 }
-?>
+
+if ($requestType === 'showoff') {
+    echo json_encode([
+        'image' => AAC_BASE_URL . '/resources/base/logo.png',
+        'title' => 'astarOT',
+        'description' => 'Cliente oficial do astarOT, com acesso travado ao seu mundo, status online integrado e boosted sincronizado com o AAC.',
+    ]);
+    exit;
+}
+
+if ($requestType === 'boostedcreature') {
+    $response = postJson(AAC_LOGIN_URL, ['type' => 'boostedcreature']);
+    if ($response === null) {
+        $response = [
+            'creatureraceid' => 32,
+            'bossraceid' => 300,
+            'creaturename' => '',
+            'creaturelooktype' => 0,
+            'creaturelookhead' => 0,
+            'creaturelookbody' => 0,
+            'creaturelooklegs' => 0,
+            'creaturelookfeet' => 0,
+            'creaturelookaddons' => 0,
+            'creaturelookmount' => 0,
+            'creatureimageurl' => '',
+            'bossname' => '',
+            'bosslooktype' => 0,
+            'bosslookhead' => 0,
+            'bosslookbody' => 0,
+            'bosslooklegs' => 0,
+            'bosslookfeet' => 0,
+            'bosslookaddons' => 0,
+            'bosslookmount' => 0,
+            'bossimageurl' => '',
+        ];
+    }
+
+    echo json_encode($response);
+    exit;
+}
+
+http_response_code(404);
+echo json_encode([
+    'error' => 'Unsupported request type',
+]);

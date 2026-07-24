@@ -14,22 +14,48 @@ local serverTextList = nil
 local removeWindow = nil
 local servers = {}
 
+local function copyServerEntry(entry)
+    return {
+        port = entry.port,
+        protocol = entry.protocol,
+        httpLogin = entry.httpLogin == true,
+        useAuthenticator = entry.useAuthenticator == true,
+        account = entry.account or '',
+        password = entry.password or '',
+        autologin = entry.autologin == true
+    }
+end
+
+local function isConfiguredServer(host)
+    return Servers_init and Servers_init[host] ~= nil
+end
+
 -- public functions
 function ServerList.init()
     serverListWindow = g_ui.displayUI('serverlist')
     serverTextList = serverListWindow:getChildById('serverList')
-    local processedServers = {}
-    servers = g_settings.getNode('ServerList') or {}
+
+    local addButton = serverListWindow:getChildById('buttonAdd')
+    if addButton then
+        addButton:setVisible(false)
+    end
+
+    servers = {}
+
     if Servers_init then
-        for key, value in pairs(Servers_init) do
-            if not servers[key] then
-                servers[key] = value
-                if not processedServers[key] then
-                    processedServers[key] = true
-                end
+        local savedServers = g_settings.getNode('ServerList') or {}
+        for host, value in pairs(Servers_init) do
+            servers[host] = copyServerEntry(value)
+            if savedServers[host] then
+                servers[host].account = savedServers[host].account or servers[host].account
+                servers[host].password = savedServers[host].password or servers[host].password
+                servers[host].autologin = savedServers[host].autologin == true
             end
         end
+    else
+        servers = g_settings.getNode('ServerList') or {}
     end
+
     if servers then
         ServerList.load()
     end
@@ -47,7 +73,15 @@ end
 
 function ServerList.load()
     for host, server in pairs(servers) do
-        ServerList.add(host, server.port, server.protocol, httpLogin, true)
+        ServerList.add(host, server.port, server.protocol, server.httpLogin, true)
+        local widget = serverTextList:getChildById(host)
+        if widget then
+            local removeButton = widget:getChildById('remove')
+            if removeButton then
+                removeButton:setVisible(false)
+                removeButton:setEnabled(false)
+            end
+        end
     end
 end
 
@@ -70,6 +104,8 @@ function ServerList.add(host, port, protocol, httpLogin, load)
         return false, 'Failed to load settings'
     elseif not load and servers[host] then
         return false, 'Server already exists'
+    elseif not load and Servers_init and next(Servers_init) ~= nil and not isConfiguredServer(host) then
+        return false, 'This client is locked to the configured server'
     elseif host == '' or port == '' then
         return false, 'Required fields are missing'
     elseif httpLogin == nil then
@@ -105,6 +141,11 @@ end
 
 function ServerList.remove(widget)
     local host = widget:getId()
+
+    if isConfiguredServer(host) then
+        displayInfoBox(tr('Locked server'), tr('This client is locked to the configured server.'))
+        return
+    end
 
     if removeWindow then
         return

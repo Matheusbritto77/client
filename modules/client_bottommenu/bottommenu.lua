@@ -26,9 +26,9 @@ local BOSS_BONUS_TEXT = "Today's boosted boss: %s\n\n\tBoosted boss contain more
 local default_info = {
     -- hint 1
     {
-        image = "images/randomhint",
-        Title = "Enabling Boosted Creature Panel",
-        description = "Boosted creatures panel requires configuring a webservice (init.lua) and preloading a client version by either setting one server in Servers_init (init.lua) or by altering entergame.lua.\n\nFor more hints, visit:\t\t https://github.com/mehah/otclient/wiki"
+        image = "/data/images/clienticon.png",
+        Title = "astarOT",
+        description = "Official astarOT client. The server, boosted creature, boosted boss and player count are synchronized with the AAC configured in init.lua."
     },
 
     -- hint 2

@@ -190,6 +190,20 @@ function EnterGame.init()
         port = 7171
     end
 
+    if Servers_init and next(Servers_init) ~= nil then
+        local lockedHost, lockedServer = next(Servers_init)
+        if lockedHost and lockedServer and not next(Servers_init, lockedHost) then
+            host = lockedHost
+            port = lockedServer.port or port
+            httpLogin = lockedServer.httpLogin == true
+            clientVersion = lockedServer.protocol or clientVersion
+            g_settings.set('host', host)
+            g_settings.set('port', port)
+            g_settings.set('client-version', clientVersion)
+            g_settings.set('httpLogin', httpLogin)
+        end
+    end
+
     local servers = g_settings.getNode("ServerList") or {}
     local serverData = servers[host] or {}
     if serverData and serverData.account then
@@ -346,7 +360,7 @@ function EnterGame.firstShow()
         if g_modules.getModule("client_bottommenu"):isLoaded()  then
             EnterGame.postCacheInfo()
             EnterGame.postEventScheduler()
-            -- EnterGame.postShowOff() -- myacc/znote no send login.php
+            EnterGame.postShowOff()
             EnterGame.postShowCreatureBoost()
         end
     end
