@@ -19,21 +19,97 @@ local monsterOutfit
 local monsterImage
 local bossOutfit
 local bossImage
+local showOffCard
+local showOffCycleEvent
+local showOffCycleIndex = 1
 
 local CREATURE_BONUS_TEXT = "Today's boosted creature: %s\n\n\tBoosted creatures yield more experience\n points, carry more loot than usual\n and respawn at a faster rate."
 local BOSS_BONUS_TEXT = "Today's boosted boss: %s\n\n\tBoosted boss contain more loot and\n count more kills for your bosstiary."
+local SHOW_OFF_CYCLE_INTERVAL = 7000
 
-local default_info = {
-    -- hint 1
+local showOffMessages = {
     {
-        image = "/data/images/clienticon.png",
-        Title = "astarOT",
-        description = "Official astarOT client. The server, boosted creature, boosted boss and player count are synchronized with the AAC configured in init.lua."
+        image = "/modules/client_bottommenu/images/randomhint.png",
+        title = "Welcome to astarOT",
+        description = "Use this official client to connect to astarOT with the correct version, assets and server configuration."
     },
-
-    -- hint 2
-    -- {image = "image of label", Title = "title", description = "your hint here"},
+    {
+        image = "/modules/client_bottommenu/images/randomhint.png",
+        title = "Account",
+        description = "Manage your account, create characters and follow server news through the astarOT website."
+    },
+    {
+        image = "/modules/client_bottommenu/images/randomhint.png",
+        title = "Server Status",
+        description = "Online players, boosted creature, boosted boss and event schedule are synchronized with the account service."
+    },
+    {
+        image = "/modules/client_bottommenu/images/randomhint.png",
+        title = "Tip",
+        description = "Keep your client updated to avoid missing assets, protocol mismatches and connection errors when entering the world."
+    }
 }
+
+local function getShowOffContentsPanel()
+    return showOffWindow and showOffWindow:recursiveGetChildById('contentsPanel') or nil
+end
+
+local function ensureShowOffCard()
+    if showOffCard and not showOffCard:isDestroyed() then
+        return showOffCard
+    end
+
+    local scrollable = getShowOffContentsPanel()
+    if not scrollable then
+        return nil
+    end
+
+    scrollable:destroyChildren()
+    showOffCard = g_ui.createWidget('ShowOffWidget', scrollable)
+    showOffCard:resize(scrollable:getWidth(), 92)
+    return showOffCard
+end
+
+local function renderShowOffCard(data)
+    local widget = ensureShowOffCard()
+    if not widget then
+        return
+    end
+
+    local description = widget:recursiveGetChildById('description')
+    local image = widget:recursiveGetChildById('image')
+    local imageSource = data.image or "/modules/client_bottommenu/images/randomhint.png"
+
+    showOffWindow.title:setText(tr(data.title or "astarOT"))
+    description:setText(tr(data.description or ""))
+    image:setSize({ width = 64, height = 64 })
+
+    if imageSource:sub(1, 4):lower() == "http" then
+        HTTP.downloadImage(imageSource, function(path, err)
+            if err then
+                g_logger.warning("HTTP error: " .. err .. " - " .. imageSource)
+                image:setImageSource("/modules/client_bottommenu/images/randomhint.png")
+                return
+            end
+            image:setImageSource(path)
+        end)
+        return
+    end
+
+    image:setImageSource(imageSource)
+end
+
+local function scheduleNextShowOffMessage()
+    removeEvent(showOffCycleEvent)
+    showOffCycleEvent = scheduleEvent(function()
+        showOffCycleIndex = showOffCycleIndex + 1
+        if showOffCycleIndex > #showOffMessages then
+            showOffCycleIndex = 1
+        end
+        renderShowOffCard(showOffMessages[showOffCycleIndex])
+        scheduleNextShowOffMessage()
+    end, SHOW_OFF_CYCLE_INTERVAL)
+end
 
 function init()
     g_ui.importStyle('calendar')
@@ -58,22 +134,13 @@ function init()
     monsterOutfit = boostedWindow:recursiveGetChildById('creature')
     bossOutfit = boostedWindow:recursiveGetChildById('boss')
 
---  if not Services.status and default_info then
-    if default_info then
-        local scrollable = showOffWindow:recursiveGetChildById('contentsPanel')
-        local widget = g_ui.createWidget('ShowOffWidget', scrollable)
-        local description = widget:recursiveGetChildById('description')
-        local image = widget:recursiveGetChildById('image')
-
-        math.randomseed(os.time())
-        local randomIndex = math.random(1, #default_info)
-        local randomItem = default_info[randomIndex]
-        showOffWindow.title:setText(tr(randomItem.Title))
-        image:setImageSource(randomItem.image)
-        description:setText(tr(randomItem.description))
+--  if not Services.status and showOffMessages then
+    if showOffMessages then
+        showOffCycleIndex = math.random(1, #showOffMessages)
+        renderShowOffCard(showOffMessages[showOffCycleIndex])
+        scheduleNextShowOffMessage()
         monsterOutfit:setVisible(false)
         bossOutfit:setVisible(false)
-        widget:resize(widget:getWidth(), description:getHeight())
 
         monsterImage = boostedWindow:recursiveGetChildById('monsterImage')
         bossImage = boostedWindow:recursiveGetChildById('bossImage')
@@ -89,6 +156,7 @@ function init()
 end
 
 function terminate()
+    removeEvent(showOffCycleEvent)
     bottomMenu:destroy()
     calendarWindow:destroy()
 end
@@ -110,25 +178,8 @@ end
 
 -- @ Store showoff
 function setShowOffData(data)
-    local widget = g_ui.createWidget('ShowOffWidget', showOffWindow)
-    local image = widget:recursiveGetChildById('image')
-
-    if data.image and data.image:sub(1, 4):lower() == "http" then
-        HTTP.downloadImage(data.image, function(path, err)
-            if err then
-                g_logger.warning("HTTP error: " .. err .. " - " .. data.image)
-                return
-            end
-            image:setImageSource(path)
-        end)
-    else
-        image:setImage(data.image)
-    end
-
-    local description = widget:recursiveGetChildById('description')
-
-    showOffWindow.title:setText(tr(data.title))
-    description:setText(tr(data.description))
+    renderShowOffCard(data)
+    scheduleNextShowOffMessage()
 end
 
 -- @ Calendar/Events scheduler

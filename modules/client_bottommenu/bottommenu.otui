@@ -1,29 +1,29 @@
 ShowOffWidget < UIWidget
-  size: 1020 1000
+  size: 585 92
   anchors.left: parent.left
   anchors.top: parent.top
 
-  Label
+  UIWidget
     id: image
     size: 64 64
     anchors.left: parent.left
-    anchors.top: parent.top
-    margin-left: 10
-    image-auto-resize: true
+    anchors.verticalCenter: parent.verticalCenter
+    margin-left: 18
+    image-size: 64 64
 
   UITextEdit
     id: description
-    size: 465 0
+    size: 470 72
     ttf-font: verdana-bold
     ttf-font-size: 10
     anchors.left: image.right
-    anchors.top: parent.top
-    anchors.bottom: parent.bottom
-    margin-left: 2
+    anchors.verticalCenter: parent.verticalCenter
+    anchors.right: parent.right
+    margin-left: 18
+    margin-right: 14
     color: #c0c0c0ff
     multiline: true
     text-wrap: true
-    text-auto-resize: true
     editable: false
     selectable: true
     focusable: false

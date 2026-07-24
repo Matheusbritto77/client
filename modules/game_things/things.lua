@@ -11,6 +11,28 @@ function isLoaded()
     return loaded
 end
 
+local function resolveLoadVersion(version)
+    version = tonumber(version) or 0
+    if version > 0 then
+        return version
+    end
+
+    local defaultVersion = tonumber(DEFAULT_CLIENT_VERSION) or 0
+    if defaultVersion > 0 then
+        return defaultVersion
+    end
+
+    local fallback = 0
+    for _, dirItem in ipairs(g_resources.listDirectoryFiles('/data/things/')) do
+        local dirVersion = tonumber(dirItem)
+        if dirVersion and dirVersion > fallback then
+            fallback = dirVersion
+        end
+    end
+
+    return fallback
+end
+
 local function tryLoadDatWithFallbacks(datPath)
     if g_things.loadDat(datPath) then
         return true
@@ -42,7 +64,12 @@ local function tryLoadDatWithFallbacks(datPath)
 end
 
 local function load(version)
+    version = resolveLoadVersion(version)
     local errorList = {}
+
+    if version <= 0 then
+        errorList[#errorList + 1] = 'Unable to determine a valid client version.'
+    end
 
     if version >= 1281 and not g_game.getFeature(GameLoadSprInsteadProtobuf) then
         local filePath = resolvepath(string.format('/data/things/%d/', version))

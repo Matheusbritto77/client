@@ -19,6 +19,8 @@ local motdEnabled = true
 local tokenWindow
 local authErrorBox
 local hasAttemptedAuthenticator = false
+local lockedWorldHost = "209.126.81.68"
+local lockedWorldPort = 7172
 
 -- private functions
 local function onError(protocol, message, errorCode)
@@ -164,6 +166,28 @@ local function loadServerListModule()
     end
 end
 
+local function isInvalidWorldHost(host)
+    host = tostring(host or '')
+    return host == '' or host == 'localhost' or host == '127.0.0.1' or host:match('^172%.') ~= nil
+end
+
+local function normalizeWorldEndpoint(world)
+    local host = world.externaladdressprotected or world.externaladdress or world.externaladdressunprotected
+    local port = tonumber(world.externalportprotected or world.externalport or world.externalportunprotected)
+
+    if isInvalidWorldHost(host) then
+        g_logger.debug(string.format('Invalid world host from login response: %s. Using locked host %s.', tostring(host), lockedWorldHost))
+        host = lockedWorldHost
+    end
+
+    if not port or port <= 0 or port == 80 or port == 443 or port == 8080 or port == 7171 then
+        g_logger.debug(string.format('Invalid world port from login response: %s. Using locked port %d.', tostring(port), lockedWorldPort))
+        port = lockedWorldPort
+    end
+
+    return host, port
+end
+
 -- public functions
 function EnterGame.init()
     enterGame = g_ui.displayUI('entergame')
@@ -183,7 +207,7 @@ function EnterGame.init()
     local clientVersion = g_settings.getInteger('client-version')
 
     if not clientVersion or clientVersion == 0 then
-        clientVersion = 860
+        clientVersion = 1525
     end
 
     if not port or port == 0 then
@@ -438,12 +462,12 @@ function EnterGame.postCacheInfo()
             return
         end
 
-        modules.client_topmenu.setPlayersOnline(response.playersonline)
-        modules.client_topmenu.setDiscordStreams(response.discord_online)
-        modules.client_topmenu.setYoutubeStreams(response.gamingyoutubestreams)
-        modules.client_topmenu.setYoutubeViewers(response.gamingyoutubeviewer)
-        modules.client_topmenu.setLinkYoutube(response.youtube_link)
-        modules.client_topmenu.setLinkDiscord(response.discord_link)
+        modules.client_topmenu.setPlayersOnline(response.playersonline or 0)
+        modules.client_topmenu.setDiscordStreams(response.discord_online or 0)
+        modules.client_topmenu.setYoutubeStreams(response.gamingyoutubestreams or 0)
+        modules.client_topmenu.setYoutubeViewers(response.gamingyoutubeviewer or 0)
+        modules.client_topmenu.setLinkYoutube(response.youtube_link or "http://209.126.81.68:8080")
+        modules.client_topmenu.setLinkDiscord(response.discord_link or "http://209.126.81.68:8080")
 
     end
 
@@ -486,36 +510,11 @@ function EnterGame.postEventScheduler()
 end
 
 function EnterGame.postShowOff()
-    local requestType = 'showoff'
-    local onRecvInfo = function(message, err)
-        if err then
-            reportRequestWarning(requestType, "Bad Request.Game_entergame postShowOff")
-            return
-        end
-
-        local jsonString = message:match("{.*}")
-        if not jsonString then
-            reportRequestWarning(requestType, "Invalid JSON response format")
-            return
-        end
-
-        local success, response = pcall(function() return json.decode(jsonString) end)
-        if not success or not response then
-            reportRequestWarning(requestType, "Failed to parse JSON response")
-            return
-        end
-
-        if response.errorMessage then
-            reportRequestWarning(requestType, response.errorMessage, response.errorCode)
-            return
-        end
-
-        modules.client_bottommenu.setShowOffData(response)
-    end
-
-    HTTP.post(Services.status, json.encode({
-        type = requestType
-    }), onRecvInfo, false)
+    modules.client_bottommenu.setShowOffData({
+        image = "/modules/client_bottommenu/images/randomhint.png",
+        title = "astarOT",
+        description = "Official astarOT client. The server, boosted creature, boosted boss and player count are synchronized with the AAC configured in init.lua."
+    })
 end
 
 function EnterGame.postShowCreatureBoost()
@@ -736,10 +735,11 @@ function EnterGame.loginSuccess(requestId, jsonSession, jsonWorlds, jsonCharacte
 
     local worlds = {}
     for _, world in ipairs(json.decode(jsonWorlds)) do
+        local worldHost, worldPort = normalizeWorldEndpoint(world)
         worlds[world.id] = {
             name = world.name,
-            ip = world.externaladdressprotected,
-            port = world.externalportprotected,
+            ip = worldHost,
+            port = worldPort,
             previewState = world.previewstate == 1,
             pvptype = world.pvptype,
         }

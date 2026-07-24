@@ -21,7 +21,16 @@ local fps = {}
 local ping = {}
 local widgetsInfoEnabled = false
 
+local function isDebugBuild()
+	local buildType = g_app.getBuildType and g_app.getBuildType() or ""
+	return string.find(string.lower(buildType), "debug", 1, true) ~= nil
+end
+
 function init()
+	if not isDebugBuild() then
+		return
+	end
+
 	debugInfoButton = modules.client_topmenu.addTopRightToggleButton("debugInfoButton", tr("Debug Info"),
 		"/images/topbuttons/debug", toggle)
 	debugInfoButton:setOn(false)
@@ -83,6 +92,10 @@ function init()
 end
 
 function terminate()
+	if not debugInfoWindow or not debugInfoButton then
+		return
+	end
+
 	debugInfoWindow:destroy()
 	debugInfoButton:destroy()
 
@@ -101,6 +114,10 @@ function onMiniWindowClose()
 end
 
 function toggle()
+	if not debugInfoWindow or not debugInfoButton then
+		return
+	end
+
 	if debugInfoButton:isOn() then
 		debugInfoWindow:hide()
 		debugInfoButton:setOn(false)

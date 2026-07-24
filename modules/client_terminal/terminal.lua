@@ -30,6 +30,11 @@ local cachedLines = {}
 local disabled = false
 local allLines = {}
 
+local function isDebugBuild()
+    local buildType = g_app.getBuildType and g_app.getBuildType() or ""
+    return string.find(string.lower(buildType), "debug", 1, true) ~= nil
+end
+
 -- private functions
 local function navigateCommand(step)
     if commandTextEdit:isMultiline() then
@@ -143,6 +148,10 @@ end
 
 -- public functions
 function init()
+    if not isDebugBuild() then
+        return
+    end
+
     terminalWindow = g_ui.displayUI('terminal')
     terminalWindow:setVisible(false)
 
@@ -204,6 +213,10 @@ function init()
 end
 
 function terminate()
+    if not terminalWindow or not terminalButton then
+        return
+    end
+
     g_settings.setList('terminal-history', commandHistory)
 
     removeEvent(flushEvent)
@@ -231,6 +244,10 @@ function terminate()
 end
 
 function hideButton()
+    if not terminalButton then
+        return
+    end
+
     terminalButton:hide()
 end
 
@@ -272,6 +289,10 @@ function popWindow()
 end
 
 function toggle()
+    if not terminalWindow then
+        return
+    end
+
     if terminalWindow:isVisible() then
         hide()
     else
@@ -295,6 +316,10 @@ function toggle()
 end
 
 function show()
+    if not terminalWindow then
+        return
+    end
+
     terminalWindow:show()
     terminalWindow:raise()
     terminalWindow:focus()
@@ -305,6 +330,10 @@ function show()
 end
 
 function hide()
+    if not terminalWindow then
+        return
+    end
+
     terminalWindow:hide()
     if terminalButton then
         terminalButton:setOn(false)
@@ -312,7 +341,9 @@ function hide()
 end
 
 function disable()
-    terminalButton:hide()
+    if terminalButton then
+        terminalButton:hide()
+    end
     disabled = true
 end
 

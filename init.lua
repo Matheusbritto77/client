@@ -3,11 +3,12 @@
 
 local SERVER_IP = "209.126.81.68"
 local WEB_BASE_URL = "http://209.126.81.68:8080"
+DEFAULT_CLIENT_VERSION = 1525
 
 -- updater
 Services = {
     updater = "",
-    status = WEB_BASE_URL .. "/tools/api/status.php",
+    status = WEB_BASE_URL .. "/api/v1/login",
     websites = WEB_BASE_URL,
     createAccount = WEB_BASE_URL .. "/api/v1/create_account",
     getCoinsUrl = WEB_BASE_URL,
@@ -67,7 +68,7 @@ if ENABLE_SERVERS then
     Servers_init = {
         [SERVER_IP] = {
             port = 7171,
-            protocol = 1513,
+            protocol = DEFAULT_CLIENT_VERSION,
             httpLogin = false,
             useAuthenticator = false
         }
