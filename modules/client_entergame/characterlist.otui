@@ -475,7 +475,7 @@ MainWindow
 
   Button
     id: premiumButton
-    !text: tr('Get Tibia Coins')
+    !text: tr('Get Premium')
     anchors.right: parent.right
     text-auto-resize: true
     image-color: green
