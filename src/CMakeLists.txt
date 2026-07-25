@@ -47,7 +47,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # *****************************************************************************
 # Client
 # *****************************************************************************
-if (MSVC)
+if (WIN32 AND NOT ANDROID)
   add_executable(${PROJECT_NAME} "" ../cmake/icon/otcicon.rc)
 elseif(ANDROID)
   add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
@@ -594,6 +594,10 @@ endif()
 
 target_link_libraries(${PROJECT_NAME} PRIVATE otclient_core)
 
+if(WIN32 AND CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  target_link_libraries(${PROJECT_NAME} PRIVATE winmm dwmapi bcrypt)
+endif()
+
 # *****************************************************************************
 # Build flags
 # *****************************************************************************
@@ -765,6 +769,15 @@ if(MSVC)
           protobuf::libprotobuf
           protobuf
       )
+  endif()
+
+  if(MINGW)
+    target_link_libraries(otclient_core
+            PUBLIC
+            winmm
+            bcrypt
+            dwmapi
+    )
   endif()
 elseif(ANDROID)
   target_include_directories(otclient_core
@@ -1057,7 +1070,7 @@ if(APPLE AND NOT ANDROID AND NOT WASM)
   set(MACOSX_BUNDLE_SHORT_VERSION_STRING "${VERSION}")
   set(MACOSX_BUNDLE_COPYRIGHT "Copyright © 2024")
   set(MACOSX_BUNDLE_EXECUTABLE_NAME "OTClient")
-  set(MACOSX_BUNDLE_ICON_FILE "OTClient")
+  set(MACOSX_BUNDLE_ICON_FILE "OTClient.icns")
   if(DEFINED CMAKE_OSX_DEPLOYMENT_TARGET AND NOT CMAKE_OSX_DEPLOYMENT_TARGET STREQUAL "")
     set(MACOSX_BUNDLE_MINIMUM_SYSTEM_VERSION "${CMAKE_OSX_DEPLOYMENT_TARGET}")
   else()
@@ -1071,7 +1084,7 @@ if(APPLE AND NOT ANDROID AND NOT WASM)
     OUTPUT_NAME "OTClient"
     MACOSX_BUNDLE TRUE
     MACOSX_BUNDLE_INFO_PLIST "${OTCLIENT_INFO_PLIST}"
-    MACOSX_BUNDLE_ICON_FILE "OTClient"
+    MACOSX_BUNDLE_ICON_FILE "OTClient.icns"
   )
 
   add_custom_command(TARGET ${PROJECT_NAME}
@@ -1091,7 +1104,7 @@ endif()
 # *****************************************************************************
 # Enable otclient console only for debug build
 # *****************************************************************************
-if(WIN32)
+if(WIN32 AND MSVC)
   set_target_properties(${PROJECT_NAME}
           PROPERTIES
           LINK_FLAGS_DEBUG "/SUBSYSTEM:CONSOLE"
@@ -1099,7 +1112,14 @@ if(WIN32)
           LINK_FLAGS_RELWITHDEBINFO "/SUBSYSTEM:CONSOLE"
           LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:windows /ENTRY:mainCRTStartup"
   )
-endif(WIN32)
+elseif(WIN32 AND MINGW)
+  set_target_properties(${PROJECT_NAME}
+          PROPERTIES
+          LINK_FLAGS_RELEASE "-mwindows"
+          LINK_FLAGS_RELWITHDEBINFO "-mwindows"
+          LINK_FLAGS_MINSIZEREL "-mwindows"
+  )
+endif()
 
 if(ANDROID)
   set(CMAKE_SHARED_LINKER_FLAGS "-fuse-ld=lld")

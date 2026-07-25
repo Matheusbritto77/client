@@ -27,6 +27,9 @@
 #    undef CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO
 #    define CPPHTTPLIB_DISABLE_MACOSX_AUTOMATIC_ROOT_CERTIFICATES
 #endif
+#ifdef __MINGW32__
+#    undef CPPHTTPLIB_USE_NON_BLOCKING_GETADDRINFO
+#endif
 #include <httplib.h>
 
 #include "httplogin.h"

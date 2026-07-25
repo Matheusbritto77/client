@@ -324,8 +324,14 @@ void ResourceManager::terminate()
 
 bool ResourceManager::discoverWorkDir(const std::string& existentFile)
 {
+    const auto binaryDir = m_binaryPath.parent_path().generic_string() + "/";
+
     // search for modules directory
     std::string possiblePaths[] = { g_platform.getCurrentDir(),
+                                    binaryDir,
+                                    binaryDir + "game_data/",
+                                    binaryDir + "../Resources/game_data/",
+                                    binaryDir + "../",
                                     g_resources.getBaseDir(),
                                     g_resources.getBaseDir() + "/game_data/",
                                     g_resources.getBaseDir() + "../Resources/game_data/",

@@ -33,6 +33,46 @@ local function redactLoginValue(value)
     return value:sub(1, 3) .. '...' .. value:sub(-2)
 end
 
+local function sanitizeAccountInput(value)
+    value = tostring(value or '')
+    value = value:gsub('[\r\n]+', '')
+    value = value:gsub('^%s+', ''):gsub('%s+$', '')
+    return value
+end
+
+local function sanitizePasswordInput(value)
+    value = tostring(value or '')
+    return value:gsub('[\r\n]+', '')
+end
+
+local function decodeApiJson(message)
+    if type(message) ~= 'string' then
+        return nil, 'Invalid response type'
+    end
+
+    local payload = message:match('^%s*(.-)%s*$') or ''
+    if payload == '' then
+        return nil, 'Empty response body'
+    end
+
+    local success, response = pcall(json.decode, payload)
+    if success and response then
+        return response
+    end
+
+    local jsonString = payload:match('({.*})') or payload:match('(%[.*%])')
+    if not jsonString then
+        return nil, 'Invalid JSON response format'
+    end
+
+    success, response = pcall(json.decode, jsonString)
+    if not success or not response then
+        return nil, 'Failed to parse JSON response'
+    end
+
+    return response
+end
+
 -- private functions
 local function onError(protocol, message, errorCode)
     g_logger.info(string.format('[LoginTrace] EnterGame.onError code=%s message=%s', tostring(errorCode), tostring(message)))
@@ -454,22 +494,14 @@ function EnterGame.postCacheInfo()
     local requestType = 'cacheinfo'
 
     local onRecvInfo = function(message, err)
-
         if err then
-            -- onError(nil, 'Bad Request. Game_entergame postCacheInfo1 ', 400)
-            reportRequestWarning(requestType, "Bad Request. Game_entergame postCacheInfo1")
+            reportRequestWarning(requestType, "Bad Request. Game_entergame postCacheInfo1: " .. tostring(err))
             return
         end
 
-        local jsonString = message:match("{.*}")
-        if not jsonString then
-            reportRequestWarning(requestType, "Invalid JSON response format")
-            return
-        end
-
-        local success, response = pcall(function() return json.decode(jsonString) end)
-        if not success or not response then
-            reportRequestWarning(requestType, "Failed to parse JSON response")
+        local response, decodeErr = decodeApiJson(message)
+        if not response then
+            reportRequestWarning(requestType, decodeErr or "Failed to parse JSON response")
             return
         end
 
@@ -496,19 +528,13 @@ function EnterGame.postEventScheduler()
     local requestType = 'eventschedule'
     local onRecvInfo = function(message, err)
         if err then
-            reportRequestWarning(requestType, "Bad Request.Game_entergame postEventScheduler1")
+            reportRequestWarning(requestType, "Bad Request.Game_entergame postEventScheduler1: " .. tostring(err))
             return
         end
 
-        local jsonString = message:match("{.*}")
-        if not jsonString then
-            reportRequestWarning(requestType, "Invalid JSON response format")
-            return
-        end
-
-        local success, response = pcall(function() return json.decode(jsonString) end)
-        if not success or not response then
-            reportRequestWarning(requestType, "Failed to parse JSON response")
+        local response, decodeErr = decodeApiJson(message)
+        if not response then
+            reportRequestWarning(requestType, decodeErr or "Failed to parse JSON response")
             return
         end
 
@@ -537,20 +563,13 @@ function EnterGame.postShowCreatureBoost()
     local requestType = 'boostedcreature'
     local onRecvInfo = function(message, err)
         if err then
-            -- onError(nil, 'Bad Request. 1 Game_entergame postShowCreatureBoost', 400)
-            reportRequestWarning(requestType, "Bad Request.Game_entergame postShowCreatureBoost1")
+            reportRequestWarning(requestType, "Bad Request.Game_entergame postShowCreatureBoost1: " .. tostring(err))
             return
         end
 
-        local jsonString = message:match("{.*}")
-        if not jsonString then
-            reportRequestWarning(requestType, "Invalid JSON response format")
-            return
-        end
-
-        local success, response = pcall(function() return json.decode(jsonString) end)
-        if not success or not response then
-            reportRequestWarning(requestType, "Failed to parse JSON response")
+        local response, decodeErr = decodeApiJson(message)
+        if not response then
+            reportRequestWarning(requestType, decodeErr or "Failed to parse JSON response")
             return
         end
 
@@ -838,8 +857,8 @@ function EnterGame.loginFailed(requestId, msg, result)
 end
 
 function EnterGame.doLogin()
-    G.account = enterGame:getChildById('accountNameTextEdit'):getText()
-    G.password = enterGame:getChildById('accountPasswordTextEdit'):getText()
+    G.account = sanitizeAccountInput(enterGame:getChildById('accountNameTextEdit'):getText())
+    G.password = sanitizePasswordInput(enterGame:getChildById('accountPasswordTextEdit'):getText())
     G.stayLogged = enterGame:getChildById('stayLoggedBox'):isChecked()
     G.host = enterGame:getChildById('serverHostTextEdit'):getText()
     G.port = tonumber(enterGame:getChildById('serverPortTextEdit'):getText())
