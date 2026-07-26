@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-const AAC_BASE_URL = 'http://209.126.81.68:8080';
+const AAC_BASE_URL = 'https://astarot.online';
 const AAC_LOGIN_URL = AAC_BASE_URL . '/api/v1/login';
 
 function postJson(string $url, array $payload): ?array

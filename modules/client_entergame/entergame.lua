@@ -19,7 +19,7 @@ local motdEnabled = true
 local tokenWindow
 local authErrorBox
 local hasAttemptedAuthenticator = false
-local lockedWorldHost = "209.126.81.68"
+local lockedWorldHost = "astarot.online"
 local lockedWorldPort = 7172
 
 local function redactLoginValue(value)
@@ -514,8 +514,8 @@ function EnterGame.postCacheInfo()
         modules.client_topmenu.setDiscordStreams(response.discord_online or 0)
         modules.client_topmenu.setYoutubeStreams(response.gamingyoutubestreams or 0)
         modules.client_topmenu.setYoutubeViewers(response.gamingyoutubeviewer or 0)
-        modules.client_topmenu.setLinkYoutube(response.youtube_link or "http://209.126.81.68:8080")
-        modules.client_topmenu.setLinkDiscord(response.discord_link or "http://209.126.81.68:8080")
+        modules.client_topmenu.setLinkYoutube(response.youtube_link or "https://astarot.online")
+        modules.client_topmenu.setLinkDiscord(response.discord_link or "https://astarot.online")
 
     end
 

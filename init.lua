@@ -1,8 +1,8 @@
 -- this is the first file executed when the application starts
 -- we have to load the first modules form here
 
-local SERVER_IP = "209.126.81.68"
-local WEB_BASE_URL = "http://209.126.81.68:8080"
+local SERVER_IP = "astarot.online"
+local WEB_BASE_URL = "https://astarot.online"
 DEFAULT_CLIENT_VERSION = 1525
 
 -- updater

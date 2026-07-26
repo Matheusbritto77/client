@@ -15,7 +15,7 @@ if ($filesDir === false || $filesDir === '') {
 
 $filesUrl = getenv('OTCLIENT_FILES_URL');
 if ($filesUrl === false || $filesUrl === '') {
-    $filesUrl = 'http://209.126.81.68:8080/files';
+    $filesUrl = 'https://astarot.online/files';
 }
 
 if ($filesDir === false || $filesDir === null || $filesDir === '') {
