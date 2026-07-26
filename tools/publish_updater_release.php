@@ -25,6 +25,24 @@ const BINARY_CANDIDATES = [
     'ANDROID-EGL' => [],
     'ANDROID64-EGL' => [],
 ];
+const PACKAGE_CANDIDATES = [
+    'windows' => [
+        'OTClient-windows-x64.zip',
+        'otclient-windows-x64.zip',
+    ],
+    'linux' => [
+        'OTClient-linux-x64.tar.gz',
+        'OTClient-linux.tar.gz',
+        'otclient-linux.tar.gz',
+        'OTClient.AppImage',
+        'otclient-linux-x64.AppImage',
+    ],
+    'macos' => [
+        'OTClient-macos-prod.dmg',
+        'OTClient-macos.dmg',
+        'OTClient.dmg',
+    ],
+];
 
 function usage(): void
 {
@@ -177,7 +195,49 @@ function copyRuntimeFiles(string $sourceDir, string $targetFilesDir, array $bina
     }
 }
 
-function buildManifest(string $targetFilesDir, string $filesUrl, string $channel, array $binaryFiles): array
+function collectPackageFiles(string $sourceDir): array
+{
+    $searchRoots = array_values(array_unique([
+        $sourceDir,
+        dirname($sourceDir),
+        dirname(dirname($sourceDir)),
+    ]));
+    $sourceBaseName = basename($sourceDir);
+    $packages = [];
+
+    foreach (PACKAGE_CANDIDATES as $packageKey => $candidateFiles) {
+        $candidateNames = $candidateFiles;
+        if ($packageKey === 'windows') {
+            array_unshift($candidateNames, $sourceBaseName . '.zip');
+        }
+
+        foreach ($searchRoots as $searchRoot) {
+            foreach ($candidateNames as $candidateName) {
+                $candidatePath = normalizePath($searchRoot) . DIRECTORY_SEPARATOR . $candidateName;
+                if (!is_file($candidatePath)) {
+                    continue;
+                }
+
+                $packages[$packageKey] = [
+                    'sourcePath' => $candidatePath,
+                    'targetName' => basename($candidatePath),
+                ];
+                continue 3;
+            }
+        }
+    }
+
+    return $packages;
+}
+
+function copyPackageFiles(string $targetPackagesDir, array $packageFiles): void
+{
+    foreach ($packageFiles as $packageFile) {
+        copyFileToTarget($packageFile['sourcePath'], $targetPackagesDir . DIRECTORY_SEPARATOR . $packageFile['targetName']);
+    }
+}
+
+function buildManifest(string $targetFilesDir, string $filesUrl, string $channel, array $binaryFiles, string $packagesUrl, string $targetPackagesDir, array $packageFiles): array
 {
     $files = [];
     $iterator = new RecursiveIteratorIterator(
@@ -218,12 +278,28 @@ function buildManifest(string $targetFilesDir, string $filesUrl, string $channel
         ];
     }
 
+    $packages = [];
+    foreach ($packageFiles as $packageKey => $packageFile) {
+        $packagePath = $targetPackagesDir . DIRECTORY_SEPARATOR . $packageFile['targetName'];
+        if (!is_file($packagePath)) {
+            continue;
+        }
+
+        $packages[$packageKey] = [
+            'file' => $packageFile['targetName'],
+            'url' => rtrim($packagesUrl, '/') . '/' . rawurlencode($packageFile['targetName']),
+            'checksum' => checksum($packagePath),
+            'size' => filesize($packagePath) ?: 0,
+        ];
+    }
+
     return [
         'channel' => $channel,
         'generatedAt' => gmdate('c'),
         'url' => rtrim($filesUrl, '/'),
         'files' => $files,
         'binaries' => $binaries,
+        'packages' => $packages,
         'keepFiles' => false,
     ];
 }
@@ -241,16 +317,22 @@ $channel = sanitizeChannel((string) ($options['channel'] ?? DEFAULT_CHANNEL));
 $baseUrl = rtrim((string) ($options['base-url'] ?? 'https://astarot.online/resources/client-updater'), '/');
 $channelRoot = $targetRoot . DIRECTORY_SEPARATOR . $channel;
 $targetFilesDir = $channelRoot . DIRECTORY_SEPARATOR . 'files';
+$targetPackagesDir = $channelRoot . DIRECTORY_SEPARATOR . 'packages';
 $manifestPath = $channelRoot . DIRECTORY_SEPARATOR . 'manifest.json';
 $filesUrl = $baseUrl . '/' . rawurlencode($channel) . '/files';
+$packagesUrl = $baseUrl . '/' . rawurlencode($channel) . '/packages';
 
 $binaryFiles = collectBinaryFiles($sourceDir);
+$packageFiles = collectPackageFiles($sourceDir);
 
 removeDirectory($targetFilesDir);
+removeDirectory($targetPackagesDir);
 ensureDirectory($targetFilesDir);
+ensureDirectory($targetPackagesDir);
 copyRuntimeFiles($sourceDir, $targetFilesDir, $binaryFiles);
+copyPackageFiles($targetPackagesDir, $packageFiles);
 
-$manifest = buildManifest($targetFilesDir, $filesUrl, $channel, $binaryFiles);
+$manifest = buildManifest($targetFilesDir, $filesUrl, $channel, $binaryFiles, $packagesUrl, $targetPackagesDir, $packageFiles);
 $manifestJson = json_encode($manifest, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
 if (!is_string($manifestJson)) {
     throw new RuntimeException('Unable to encode manifest JSON.');
@@ -266,3 +348,4 @@ fwrite(STDOUT, "Source: {$sourceDir}\n");
 fwrite(STDOUT, "Target: {$channelRoot}\n");
 fwrite(STDOUT, "Files: " . count($manifest['files']) . "\n");
 fwrite(STDOUT, "Binaries: " . count($manifest['binaries']) . "\n");
+fwrite(STDOUT, "Packages: " . count($manifest['packages']) . "\n");
