@@ -24,7 +24,7 @@ local DEFAULT_CONFIG = {
 
 local activeDownload
 local releasesCache = {}
-local ARCHIVE_EXTENSIONS = { '.zip', '.rar' }
+local ARCHIVE_EXTENSIONS = { '.zip', '.tar.gz', '.rar' }
 local DOWNLOAD_WINDOW_WIDTH = 360
 local DOWNLOAD_WINDOW_HEIGHT = 140
 local DOWNLOAD_TEXT_MARGIN = 34
@@ -69,11 +69,46 @@ local function isLzmaPath(path)
   return endsWith(tostring(path or ''):lower(), '.lzma')
 end
 
-local function isMacArchivePath(path)
+local function normalizePlatformKey(value)
+  value = tostring(value or ''):lower()
+  if value == '' then
+    return ''
+  end
+
+  if value:find('win', 1, true) then
+    return 'windows'
+  end
+  if value:find('linux', 1, true) or value:find('x11', 1, true) then
+    return 'linux'
+  end
+  if value:find('macos', 1, true) or value:find('osx', 1, true) or value:find('darwin', 1, true) then
+    return 'macos'
+  end
+
+  return ''
+end
+
+local function currentPlatformKey()
+  local platformKey = normalizePlatformKey(g_app.getOs())
+  if platformKey ~= '' then
+    return platformKey
+  end
+
+  return normalizePlatformKey(g_window.getPlatformType())
+end
+
+local function archivePlatformKey(path)
   path = tostring(path or ''):lower()
-  return endsWith(path, '.app.zip') or
-         path:find('macos', 1, true) or
-         path:find('%f[%a]mac%f[^%a]')
+  if path:find('windows', 1, true) or path:find('win32', 1, true) or path:find('mingw', 1, true) then
+    return 'windows'
+  end
+  if path:find('linux', 1, true) or path:find('x11', 1, true) then
+    return 'linux'
+  end
+  if path:find('macos', 1, true) or path:find('osx', 1, true) or path:find('darwin', 1, true) then
+    return 'macos'
+  end
+  return ''
 end
 
 local function isNotFoundError(message)
@@ -520,40 +555,53 @@ local function normalizeDescriptor(config, version, descriptor)
   return descriptor
 end
 
-local function findReleaseArchive(release, version)
+local function findReleaseArchive(release, version, platformKey)
   if type(release.assets) ~= 'table' then
     return nil
   end
 
   local tag = tostring(release.tag_name or ''):lower()
   local label = version and versionLabel(version):lower() or ''
+  platformKey = normalizePlatformKey(platformKey)
   local bestUrl
   local bestScore = 0
 
   for _, asset in ipairs(release.assets) do
     local name = tostring(asset.name or ''):lower()
     local url = asset.browser_download_url
-    if url and isArchivePath(name) and not isMacArchivePath(name) then
+    if url and isArchivePath(name) then
+      local assetPlatform = archivePlatformKey(name)
       local score = 0
-      if tag ~= '' and name:find(tag, 1, true) then
-        score = score + 4
-      end
-      if label ~= '' and name:find(label, 1, true) then
-        score = score + 2
-      end
+      if not (platformKey ~= '' and assetPlatform ~= '' and assetPlatform ~= platformKey) then
+        if tag ~= '' and name:find(tag, 1, true) then
+          score = score + 4
+        end
+        if label ~= '' and name:find(label, 1, true) then
+          score = score + 2
+        end
+        if platformKey ~= '' then
+          if assetPlatform == platformKey then
+            score = score + 3
+          elseif assetPlatform == '' then
+            score = score + 1
+          else
+            score = score - 4
+          end
+        end
 
-      -- Releases may contain unrelated legacy client archives. Only accept
-      -- an archive that identifies the requested tag or client version.
-      if score > 0 then
-        if name:find('client', 1, true) then
-          score = score + 1
-        end
-        if name:find('original', 1, true) or name:find('linux', 1, true) then
-          score = score - 1
-        end
-        if score > bestScore then
-          bestUrl = url
-          bestScore = score
+        -- Releases may contain unrelated legacy client archives. Only accept
+        -- an archive that identifies the requested tag or client version.
+        if score > 0 then
+          if name:find('client', 1, true) then
+            score = score + 1
+          end
+          if name:find('original', 1, true) or name:find('linux', 1, true) then
+            score = score - 1
+          end
+          if score > bestScore then
+            bestUrl = url
+            bestScore = score
+          end
         end
       end
     end
@@ -582,7 +630,7 @@ local function descriptorFromRelease(config, version, release)
     manifestUrl = baseUrl .. 'assets.json',
     manifestSha256Url = baseUrl .. 'assets.json.sha256',
     treeUrl = string.format('https://api.github.com/repos/%s/git/trees/%s?recursive=1', config.repository, tag),
-    archiveUrl = findReleaseArchive(release, version) or codeloadZipUrl(config.repository, tag)
+    archiveUrl = findReleaseArchive(release, version, currentPlatformKey()) or codeloadZipUrl(config.repository, tag)
   })
 end
 

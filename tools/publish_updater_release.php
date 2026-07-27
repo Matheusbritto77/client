@@ -22,6 +22,13 @@ const BINARY_CANDIDATES = [
     'WIN32-EGL-GCC' => ['OTClient.exe', 'otclient_x64.exe', 'otclient.exe'],
     'X11-GLX' => ['otclient_linux', 'otclient'],
     'X11-EGL' => ['otclient_linux', 'otclient'],
+    'MACOS' => [
+        'OTClient.app/Contents/MacOS/OTClient',
+        'OTClient.app/Contents/MacOS/otclient',
+        'Contents/MacOS/OTClient',
+        'Contents/MacOS/otclient',
+        'OTClient',
+    ],
     'ANDROID-EGL' => [],
     'ANDROID64-EGL' => [],
 ];
@@ -38,9 +45,13 @@ const PACKAGE_CANDIDATES = [
         'otclient-linux-x64.AppImage',
     ],
     'macos' => [
+        'OTClient-macos-arm64.dmg',
         'OTClient-macos-prod.dmg',
         'OTClient-macos.dmg',
         'OTClient.dmg',
+        'OTClient-macos-arm64.zip',
+        'OTClient-macos.zip',
+        'OTClient.app.zip',
     ],
 ];
 
