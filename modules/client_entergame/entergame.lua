@@ -19,7 +19,7 @@ local motdEnabled = true
 local tokenWindow
 local authErrorBox
 local hasAttemptedAuthenticator = false
-local lockedWorldHost = "astarot.online"
+local lockedWorldHost = "play.astarot.online"
 local lockedWorldPort = 7172
 
 local function redactLoginValue(value)

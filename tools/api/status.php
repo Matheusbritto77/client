@@ -3,7 +3,8 @@
 declare(strict_types=1);
 
 const AAC_BASE_URL = 'https://astarot.online';
-const AAC_LOGIN_URL = AAC_BASE_URL . '/api/v1/login';
+const AAC_API_BASE_URL = 'https://api.astarot.online';
+const AAC_LOGIN_URL = AAC_API_BASE_URL . '/api/v1/login';
 
 function postJson(string $url, array $payload): ?array
 {
