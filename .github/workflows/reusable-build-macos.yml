@@ -120,19 +120,24 @@ jobs:
 
           cmake --build "${BUILD_DIR}" --target otclient
 
-      - name: Create app bundle archive
+      - name: Package macOS release artifacts
         env:
           BUILD_DIR: build-${{ matrix.buildtype }}
-          ARTIFACT_NAME: otclient-${{ matrix.os }}-${{ matrix.buildtype }}
+          APP_PATH: ${{ github.workspace }}/build-${{ matrix.buildtype }}/bin/OTClient.app
+          OUT_PREFIX: ${{ github.workspace }}/dist/OTClient-macos-arm64
+          MACOS_CODESIGN_IDENTITY: ${{ secrets.MACOS_CODESIGN_IDENTITY }}
+          MACOS_NOTARY_KEYCHAIN_PROFILE: ${{ secrets.MACOS_NOTARY_KEYCHAIN_PROFILE }}
+          MACOS_NOTARY_APPLE_ID: ${{ secrets.MACOS_NOTARY_APPLE_ID }}
+          MACOS_NOTARY_TEAM_ID: ${{ secrets.MACOS_NOTARY_TEAM_ID }}
+          MACOS_NOTARY_PASSWORD: ${{ secrets.MACOS_NOTARY_PASSWORD }}
         run: |
-          cd "${BUILD_DIR}/bin"
-          xattr -cr OTClient.app
-          codesign --force --deep --sign - OTClient.app
-          ditto -c -k --keepParent OTClient.app "${ARTIFACT_NAME}.zip"
+          tools/package_macos_release.sh "${APP_PATH}" "${OUT_PREFIX}"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: otclient-${{ matrix.os }}-${{ matrix.buildtype }}-${{ github.sha }}
-          path: build-${{ matrix.buildtype }}/bin/otclient-${{ matrix.os }}-${{ matrix.buildtype }}.zip
+          path: |
+            dist/OTClient-macos-arm64.zip
+            dist/OTClient-macos-arm64.dmg
           if-no-files-found: error

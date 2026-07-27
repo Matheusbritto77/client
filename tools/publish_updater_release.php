@@ -45,13 +45,13 @@ const PACKAGE_CANDIDATES = [
         'otclient-linux-x64.AppImage',
     ],
     'macos' => [
+        'OTClient-macos-arm64.zip',
+        'OTClient-macos.zip',
+        'OTClient.app.zip',
         'OTClient-macos-arm64.dmg',
         'OTClient-macos-prod.dmg',
         'OTClient-macos.dmg',
         'OTClient.dmg',
-        'OTClient-macos-arm64.zip',
-        'OTClient-macos.zip',
-        'OTClient.app.zip',
     ],
 ];
 
