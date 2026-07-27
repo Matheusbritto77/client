@@ -150,7 +150,10 @@ local function loadModules()
 
     -- mods 1000-9999
     g_modules.autoLoadModules(9999)
-    g_modules.ensureModuleLoaded('client_mods')
+    local clientMods = g_modules.getModule('client_mods')
+    if clientMods then
+        g_modules.ensureModuleLoaded('client_mods')
+    end
 
     local script = '/' .. g_app.getCompactName() .. 'rc.lua'
 
