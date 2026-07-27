@@ -8,7 +8,7 @@ DEFAULT_CLIENT_VERSION = 1525
 
 -- updater
 Services = {
-    updater = API_BASE_URL .. "/api/v1/client_updater",
+    updater = "",
     status = API_BASE_URL .. "/api/v1/login",
     websites = WEB_BASE_URL,
     createAccount = API_BASE_URL .. "/api/v1/create_account",
