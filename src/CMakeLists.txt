@@ -48,7 +48,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 # Client
 # *****************************************************************************
 if (WIN32 AND NOT ANDROID)
-  add_executable(${PROJECT_NAME} "" ../cmake/icon/otcicon.rc)
+  add_executable(${PROJECT_NAME} WIN32 "" ../cmake/icon/otcicon.rc)
 elseif(ANDROID)
   add_library(${PROJECT_NAME} SHARED ${SOURCE_FILES})
 else()
@@ -1099,26 +1099,6 @@ if(APPLE AND NOT ANDROID AND NOT WASM)
 
 if(ENABLE_DISCORD_RPC AND NOT ANDROID)
         target_link_libraries(otclient_core PUBLIC ${DISCORDRPC_LIBRARY})
-endif()
-
-# *****************************************************************************
-# Enable otclient console only for debug build
-# *****************************************************************************
-if(WIN32 AND MSVC)
-  set_target_properties(${PROJECT_NAME}
-          PROPERTIES
-          LINK_FLAGS_DEBUG "/SUBSYSTEM:CONSOLE"
-          LINK_FLAGS_RELEASE "/SUBSYSTEM:windows /ENTRY:mainCRTStartup"
-          LINK_FLAGS_RELWITHDEBINFO "/SUBSYSTEM:CONSOLE"
-          LINK_FLAGS_MINSIZEREL "/SUBSYSTEM:windows /ENTRY:mainCRTStartup"
-  )
-elseif(WIN32 AND MINGW)
-  set_target_properties(${PROJECT_NAME}
-          PROPERTIES
-          LINK_FLAGS_RELEASE "-mwindows"
-          LINK_FLAGS_RELWITHDEBINFO "-mwindows"
-          LINK_FLAGS_MINSIZEREL "-mwindows"
-  )
 endif()
 
 if(ANDROID)
