@@ -53,7 +53,9 @@ sign_app() {
 
   if [ -n "$sign_identity" ] && [ "$sign_identity" != "-" ]; then
     sign_args+=( "$sign_identity" "--options" "runtime" "--timestamp" )
-    HAS_DEVELOPER_ID_SIGNING=1
+    if [[ "$sign_identity" == *"Developer ID Application"* ]]; then
+      HAS_DEVELOPER_ID_SIGNING=1
+    fi
   else
     sign_args+=( "-" )
     echo "MACOS_CODESIGN_IDENTITY is not set; using ad hoc signing." >&2
