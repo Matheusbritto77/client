@@ -54,6 +54,34 @@ extract_source() {
 
 extract_source
 
+require_path() {
+  local path="$1"
+  local message="$2"
+
+  if [ ! -e "$path" ]; then
+    echo "$message" >&2
+    exit 1
+  fi
+}
+
+require_directory() {
+  local path="$1"
+  local label="$2"
+
+  if [ ! -d "$path" ]; then
+    echo "Required ${label} directory not found: $path" >&2
+    exit 1
+  fi
+}
+
+require_path "$WORK_DIR/init.lua" "Required runtime file not found: init.lua"
+require_path "$WORK_DIR/otclientrc.lua" "Required runtime file not found: otclientrc.lua"
+require_directory "$WORK_DIR/data" "data"
+require_directory "$WORK_DIR/modules" "modules"
+require_directory "$WORK_DIR/mods" "mods"
+require_path "$WORK_DIR/mods/README.txt" "Required runtime file not found: mods/README.txt"
+require_path "$WORK_DIR/mods/client_mods/mods.otmod" "Required runtime file not found: mods/client_mods/mods.otmod"
+
 RUNTIME_DIRS=()
 if [ "$#" -gt 0 ]; then
   RUNTIME_DIRS+=("$@")
@@ -81,6 +109,10 @@ for dll in libwinpthread-1.dll libgcc_s_seh-1.dll libstdc++-6.dll; do
     echo "Required runtime DLL not found: $dll" >&2
     exit 1
   fi
+done
+
+for required_runtime in libwinpthread-1.dll libgcc_s_seh-1.dll libstdc++-6.dll; do
+  require_path "$WORK_DIR/$required_runtime" "Required runtime DLL not found after lookup: $required_runtime"
 done
 
 rm -f "$OUTPUT_ZIP"
